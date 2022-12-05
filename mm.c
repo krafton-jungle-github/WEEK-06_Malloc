@@ -52,6 +52,31 @@
 #define NEXT_BLKP(bp)       ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))   // 다음 블럭 bp포인터 리턴 // 현재 블록의 header에서 size을 가지고 온 뒤 현재 bp 포인터에서 size만큼을 더해 다음 블록으로 포인터가 넘어감
 #define PREV_BLKP(bp)       ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))   // 이전 블럭 bp포인터 리턴 // 이전 블록의 footer에서 size을 가지고 온 뒤 현재 bp 포인터에서 size만큼을 빼서 이전 블록으로 포인터가 넘어감
 
+static char *heap_listp; // 프롤로그 블록을 가리키는 정적 전역변수
+
+/*  mm_init - initialize the malloc package. */
+int mm_init(void)
+{
+    /* create the inital empty heap */
+    
+    // 초기 heap_listp 값은 0(mem_sbrk 함수의 old_brk값 return)
+    if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *)-1)
+        return -1;
+    
+    // 빈 가용 리스트 초기화
+    PUT(heap_listp, 0);                                 /* Alignment padding */ 
+    PUT(heap_listp + (1 * WSIZE), PACK(DSIZE, 1));      /* Prologue header */ 
+    PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1));      /* Prologue footer */
+    PUT(heap_listp + (3 * WSIZE), PACK(0, 1));          /* Epilogue header */ 
+    heap_listp += (2 * WSIZE);                          
+
+    /* Extend the empty heap with a free block of CHUNKSIZE bytes */
+    // CHUNKSIZE/WSIZE == 1024 bytes == 2^10
+    if (extend_heap(CHUNKSIZE/WSIZE) == NULL)
+        return -1;
+    return 0;
+}
+
 /* 
  * mm_malloc - Allocate a block by incrementing the brk pointer.
  *     Always allocate a block whose size is a multiple of the alignment.
