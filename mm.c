@@ -54,6 +54,31 @@
 
 static char *heap_listp; // 프롤로그 블록을 가리키는 정적 전역변수
 
+// 힙 확장하기
+static void *extend_heap(size_t words) 
+{
+    char *bp;           // 블록 포인터
+    size_t size;        // 힙을 확장할 size(바이트)
+
+    /* Allocate an even number of words to maintain alignment */
+    // 정렬을 유지하기 위해 짝수 개의 word 할당
+    size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE; // 4096 bytes, 즉 1024개의 워드 블록을 만듬
+    // mem_sbrk 함수에서 max_addr 의 크기를 넘긴다면 -1 return
+    if ((long)(bp = mem_sbrk(size)) == -1)
+        return -1;
+
+    /* Initialize free block header/footer and the epilogue header */
+    /* 가용 블럭 헤더/풋터 와 에필로그 헤더를 초기화 */ 
+    
+    PUT(HDRP(bp), PACK(size, 0));               /* Free block header */
+    PUT(FTRP(bp), PACK(size, 0));               /* Free block footer */
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));       /* New epilogue header */
+
+    /* Coalesce if the previous block was free */
+    return coalesce(bp); // (이전, 다음)블록이 가용 가능한 경우 병합
+}
+
+
 /*  mm_init - initialize the malloc package. */
 int mm_init(void)
 {
