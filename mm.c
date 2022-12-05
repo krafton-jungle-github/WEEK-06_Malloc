@@ -63,3 +63,67 @@
 // ! GET_SIZE의 인자로 전달되는 주소 값은 payload의 시작 주소가 아니라 블록 자체의 시작 주소다.
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE))
 // #define PREV_BLKP(bp) ((char *)(bp) - DSIZE - GET_SIZE((char *)(bp) - DSIZE) + DSIZE)
+
+/* 전역 변수 선언 */
+static char *heap_listp;
+
+/* 
+ * mm_init - initialize the malloc package.
+ */
+int mm_init(void)
+{
+    /* 비어있는 힙을 생성 */
+    if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *)-1)
+    // mem_sbrk 함수의 반환값을 heap_listp에 할당함과 동시에 동등 관계 연산
+    // mem_sbrk는 정상적으로 처리되지 않을 경우 -1 반환
+    {
+        return -1;
+    }
+
+    /* 방금 생성한 비어있는 힙을 초기화 */
+    PUT(heap_listp, 0); /* 미사용 패딩 워드(정렬용) */
+    PUT(heap_listp + (1 * WSIZE), PACK(8, 1)); /* 프롤로그 헤더 */
+    PUT(heap_listp + (2 * WSIZE), PACK(8, 1)); /* 프롤로그 푸터 */
+    PUT(heap_listp + (3 * WSIZE), PACK(0, 1)); /* 에필로그 푸터 */
+    heap_listp += (2 * WSIZE);
+
+    /* 초기 가용 블록 생성 */
+    // TODO:
+
+    return 0;
+}
+
+/* 
+ * extend_heap - 다음 두 가지 케이스에서 호출된다. :
+ * 1) 힙을 초기화할 때
+ * 2) mm_malloc이 적당한 fit을 찾지 못했을 때 // TODO:
+ */
+static void *extend_heap(size_t words)
+{
+    char *bp;
+    size_t size;
+
+    /*
+     * double-word alignment 유지하기 위해, 요청 크기(words)를 인접 2워드의 배수로 반올림
+     * p.811 참고
+     */
+    size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE;
+    if ((long)(bp = mem_sbrk(size)) == -1)
+    {
+        return NULL;
+    }
+
+    /* 새로운 가용 블록의 헤더/푸터와 에필로그 헤더를 정한다. */
+    PUT(HDRP(bp), PACK(size, 0)); // 새로운 가용 블록의 헤더
+    PUT(FTRP(bp), PACK(size, 0)); // 새로운 가용 블록의 푸터
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); // 새로운 에필로그 헤더
+
+    /* 이전 힙이 가용 블록으로 끝났었다면 두 개의 가용 블록 통합 작업 */
+    return coalesce(bp);
+}
+
+// TODO:
+static void *coalesce(void *bp)
+{
+    return bp;
+}
