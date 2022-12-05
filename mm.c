@@ -54,6 +54,16 @@
 
 static char *heap_listp; // 프롤로그 블록을 가리키는 정적 전역변수
 
+// 블록 할당 해제하기
+void mm_free(void *bp)
+{
+    size_t size = GET_SIZE(HDRP(bp)); // 현재 블록의 header 사이즈를 알아옴
+
+    PUT(HDRP(bp), PACK(size, 0));   // header의 할당 비트를 0으로 초기화
+    PUT(FTRP(bp), PACK(size, 0));   // footer의 할당 비트를 0으로 초기화
+    coalesce(bp);                   // (이전, 다음)블록이 가용 가능한 경우 병합
+}
+
 // 힙 확장하기
 static void *extend_heap(size_t words) 
 {
