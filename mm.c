@@ -57,7 +57,9 @@
 #define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
 /* 블록을 가리키는 포인터인 bp를 인자로 받아 다음 블록의 주소를 계산하는 매크로 함수 */
+// ! GET_SIZE의 인자로 전달되는 주소 값은 payload의 시작 주소가 아니라 블록 자체의 시작 주소다.
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp) - WSIZE))
 /* 블록을 가리키는 포인터인 bp를 인자로 받아 이전 블록의 주소를 계산하는 매크로 함수 */
+// ! GET_SIZE의 인자로 전달되는 주소 값은 payload의 시작 주소가 아니라 블록 자체의 시작 주소다.
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE))
 // #define PREV_BLKP(bp) ((char *)(bp) - DSIZE - GET_SIZE((char *)(bp) - DSIZE) + DSIZE)
