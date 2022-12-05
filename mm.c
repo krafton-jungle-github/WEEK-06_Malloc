@@ -18,93 +18,46 @@
 #include "mm.h"
 #include "memlib.h"
 
-/*********************************************************
- * NOTE TO STUDENTS: Before you do anything else, please
- * provide your team information in the following struct.
- ********************************************************/
-team_t team = {
-    /* Team name */
-    "ateam",
-    /* First member's full name */
-    "Harry Bovik",
-    /* First member's email address */
-    "bovik@cs.cmu.edu",
-    /* Second member's full name (leave blank if none) */
-    "",
-    /* Second member's email address (leave blank if none) */
-    ""
-};
+/* 매크로 상수, 매크로 함수 정의 */
 
-/* single word (4) or double word (8) alignment */
-#define ALIGNMENT 8
+#define WSIZE 4 /* 워드 사이즈 정의(bytes) */
+#define DSIZE 8 /* 더블워드 사이즈 정의(bytes) */
 
-/* rounds up to the nearest multiple of ALIGNMENT */
-#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+#define CHUNKSIZE (1 << 12) /* 힙 확장을 위한 기본 크기(bytes) */
+// 비트를 왼쪽으로 한 비트씩 이동시킬 때마다 2가 곱해지므로 1 << 12는 4096(bytes) = 4KB
 
+/* 두 값을 비교하여 더 큰 값을 선택하는 매크로 함수 */
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 
-#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
+/* 크기(size)에 대한 정보와 할당 여부를 나타내는 가용 비트(allocated bit)를 하나의 워드로 묶는 매크로 함수 */
+#define PACK(size, alloc) ((size) | (alloc))
+// 이 워드는 헤더 및 푸터를 구성함.
 
-/* 
- * mm_init - initialize the malloc package.
- */
-int mm_init(void)
-{
-    return 0;
-}
+/* 주소 p의 워드를 읽고 쓰기 위한 매크로 함수 */
+#define GET(p) (*(unsigned int *)(p))
+#define PUT(p, val) (*(unsigned int *)(p) = (val))
+// 인자로 전달받은 주소값을 unsigned int형으로 타입 캐스팅하며 간접 참조
 
-/* 
- * mm_malloc - Allocate a block by incrementing the brk pointer.
- *     Always allocate a block whose size is a multiple of the alignment.
- */
-void *mm_malloc(size_t size)
-{
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
-	return NULL;
-    else {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
-    }
-}
+/* 주소 p의 크기 정보를 읽는 매크로 함수 */
+#define GET_SIZE(p) (GET(p) & ~0x7)
+// 1. 0x7를 부정 연산하여 비트를 모두 반전시칸다. 0 .. 1 1 1 -> 1 .. 0 0 0
+// 2. 논리곱 연산(&)으로 인해, 주소 p의 워드에서 마지막 3비트만 0으로 교체된 값이 반환된다.
+// 3. 이 값이 바로 해당 워드에 저장되어 있던 크기 정보! (교재 p.816 참고)
 
-/*
- * mm_free - Freeing a block does nothing.
- */
-void mm_free(void *ptr)
-{
-}
+/* 주소 p의 가용 비트 값을 읽는 매크로 함수 */
+#define GET_ALLOC(p) (GET(p) & 0x1)
+// 1. 논리곱 연산(&)으로 인해, 주소 p의 워드에서 마지막 1비트를 제외한 앞의 모든 비트는 0으로 교체된 값이 반환된다.
+// 2. 이 값이 바로 해당 워드에 저장되어 있던 가용 비트 값! (교재 p.816 참고)
 
-/*
- * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
- */
-void *mm_realloc(void *ptr, size_t size)
-{
-    void *oldptr = ptr;
-    void *newptr;
-    size_t copySize;
-    
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
-}
+/* 블록을 가리키는 포인터인 bp를 인자로 받아 해당 블록의 헤더 주소를 계산하는 매크로 함수 */
+// ! 참고: malloc은 payload의 시작 주소를 반환한다. -> bp (교재 p.816 참고)
+#define HDRP(bp) ((char *)(bp) - WSIZE)
+/* 블록을 가리키는 포인터인 bp를 인자로 받아 해당 블록의 푸터 주소를 계산하는 매크로 함수 */
+// ! 참고: malloc은 payload의 시작 주소를 반환한다. -> bp (교재 p.816 참고)
+#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* 블록을 가리키는 포인터인 bp를 인자로 받아 다음 블록의 주소를 계산하는 매크로 함수 */
+#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp) - WSIZE))
+/* 블록을 가리키는 포인터인 bp를 인자로 받아 이전 블록의 주소를 계산하는 매크로 함수 */
+#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE))
+// #define PREV_BLKP(bp) ((char *)(bp) - DSIZE - GET_SIZE((char *)(bp) - DSIZE) + DSIZE)
