@@ -95,7 +95,7 @@ int mm_init(void);
 static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
 static void *find_fit(size_t size);
-void place(void *bp, size_t asize);
+static void place(void *bp, size_t asize);
 void mm_free(void *bp);
 void *mm_malloc(size_t size);
 void *mm_realloc(void *ptr, size_t size);
@@ -228,7 +228,7 @@ static void *find_fit(size_t asize)
 }
 
 /* 특정 가용 블록에 요청 블록을 배치하고, 가용 블록을 분할하는 작업도 선택적으로 수행하는 함수 */
-void place(void *bp, size_t asize)
+static void place(void *bp, size_t asize)
 {
     size_t csize = GET_SIZE(HDRP(bp));
 
