@@ -205,34 +205,24 @@ static void *coalesce(void *bp)
     return bp;
 }
 
-// FIXME: bp 기준으로 수정
 /* first fit 정책에 따라 배치할 가용 블록을 찾는 함수 */
 static void *find_fit(size_t asize)
 {
     // 가용 리스트를 처음부터 검색한다.
-    void *hdrp = HDRP(heap_listp);
+    char *bp;
 
-    while (1) {
-        int is_alloc = GET_ALLOC(hdrp);
-        if (is_alloc) {
-            // 할당 블록이라면 hdrp를 갱신하고 다음 턴으로 skip
-            hdrp = HDRP(NEXT_BLKP(hdrp + WSIZE));
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+        if (GET_ALLOC(HDRP(bp))) {
+            // 할당 블록이라면 다음 턴으로 skip
             continue;
         }
 
-        size_t block_size = GET_SIZE(hdrp);
-        if (!block_size) {
-            // 크기가 0이면 terminating header이며 이는 곧 가용 리스트 내에
-            // 적절한 가용 블록이 존재하지 않는다는 의미하므로 NULL을 반환
-            return NULL;
+        if (GET_SIZE(HDRP(bp)) >= asize) {
+            return bp;
         }
-
-        if (block_size >= asize) {
-            return hdrp + WSIZE;
-        }
-
-        hdrp = HDRP(NEXT_BLKP(hdrp + WSIZE));
     }
+
+    return NULL;
 }
 
 /* 블록이 할당되거나 재할당될 때 여유 공간을 판단해 분할해 주는 함수 */
