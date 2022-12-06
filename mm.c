@@ -70,6 +70,7 @@ int mm_init(void);
 static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
 static void *find_fit(size_t size);
+void place(void *bp, size_t asize);
 void mm_free(void *bp);
 void *mm_malloc(size_t size);
 
@@ -103,7 +104,7 @@ int mm_init(void)
 /* 
  * extend_heap - 다음 두 가지 케이스에서 호출된다. :
  * 1) 힙을 초기화할 때
- * 2) mm_malloc이 적당한 fit을 찾지 못했을 때 // TODO:
+ * 2) mm_malloc이 적당한 fit을 찾지 못했을 때
  */
 static void *extend_heap(size_t words)
 {
@@ -184,7 +185,7 @@ static void *coalesce(void *bp)
 static void *find_fit(size_t asize)
 {
     // 가용 리스트를 처음부터 검색한다.
-    int hdrp = WSIZE; // 미사용 패딩 워드는 건너뛰고 시작
+    char *hdrp = WSIZE; // 미사용 패딩 워드는 건너뛰고 시작
 
     while (1)
     {
@@ -195,7 +196,7 @@ static void *find_fit(size_t asize)
             continue;
         }
 
-        int block_size = GET_SIZE(hdrp);
+        size_t block_size = GET_SIZE(hdrp);
         if (!block_size) {
             // 크기가 0이면 terminating header이며 이는 곧 가용 리스트 내에
             // 적절한 가용 블록이 존재하지 않는다는 의미하므로 NULL을 반환
@@ -203,13 +204,27 @@ static void *find_fit(size_t asize)
         }
 
         if (block_size >= asize) {
-            PUT(hdrp, PACK(block_size, 1));
-            PUT(FTRP(hdrp + WSIZE), PACK(block_size, 1));
-
             return hdrp + WSIZE;
         }
 
         hdrp = HDRP(NEXT_BLKP(hdrp + WSIZE));
+    }
+}
+
+/* 특정 가용 블록에 요청 블록을 배치하고, 가용 블록을 분할하는 작업도 선택적으로 수행하는 함수 */
+void place(void *bp, size_t asize)
+{
+    size_t csize = GET_SIZE(HDRP(bp));
+
+    // 헤더 설정 (가용 블록의 시작 부분에 요청 블록을 배치)
+    PUT(HDRP(bp), PACK(asize, 1));
+    // 푸터 설정
+    PUT(FTRP(bp), PACK(asize, 1));
+
+    // 나머지 부분의 크기가 최소 블록 크기와 같거나 클 경우 분할
+    if (csize - asize >= 2 * DSIZE) {
+        PUT(HDRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
     }
 }
 
@@ -229,7 +244,7 @@ void mm_free(void *bp)
 void *mm_malloc(size_t size)
 {
     size_t asize; // 헤더/풋터 오버헤드와 더블워드 정렬 조건을 고려하여 조정된 블록 크기
-    size_t extendsize; // 맞는 블록을 찾지 못할 경우 힙을 얼마나 증가시킬지
+    size_t extend_size; // 맞는 블록을 찾지 못할 경우 힙을 얼마나 증가시킬지
     char *bp;
 
     if (size == 0) { // 의미 없는 요청은 무시
@@ -246,6 +261,18 @@ void *mm_malloc(size_t size)
 
     // 할당하기에 적절한 가용 블록을 찾았다면,
     if ((bp = find_fit(asize)) != NULL) {
-        // TODO:
+        place(bp, asize);
+
+        return bp;
     }
+
+    // 할당하기에 적절한 가용 블록을 찾지 못했다면,
+    extend_size = MAX(asize, CHUNKSIZE);
+
+    if ((bp = extend_heap(extend_size)) == NULL) {
+        return NULL;
+    }
+    place(bp, asize);
+
+    return bp;
 }
