@@ -211,7 +211,7 @@ static void *coalesce(void *bp)
 static void *find_fit(size_t asize)
 {
     // 가용 리스트를 처음부터 검색한다.
-    char *hdrp = (char *)WSIZE; // 미사용 패딩 워드는 건너뛰고 시작
+    void *hdrp = mem_heap_lo();
 
     while (1)
     {
