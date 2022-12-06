@@ -73,6 +73,7 @@ static void *find_fit(size_t size);
 void place(void *bp, size_t asize);
 void mm_free(void *bp);
 void *mm_malloc(size_t size);
+void *mm_realloc(void *ptr, size_t size);
 
 /* 
  * mm_init - initialize the malloc package.
@@ -275,4 +276,22 @@ void *mm_malloc(size_t size)
     place(bp, asize);
 
     return bp;
+}
+
+// FIXME:
+void *mm_realloc(void *ptr, size_t size)
+{
+    void *oldptr = ptr;
+    void *newptr;
+    size_t copySize;
+    
+    newptr = mm_malloc(size);
+    if (newptr == NULL)
+      return NULL;
+    copySize = GET_SIZE(HDRP(oldptr));
+    if (size < copySize)
+      copySize = size;
+    memcpy(newptr, oldptr, copySize);
+    mm_free(oldptr);
+    return newptr;
 }
