@@ -331,8 +331,22 @@ void *mm_realloc(void *ptr, size_t size)
     //새로 할당할 사이즈가 본래 사이즈보다 작거나 같을 때
     //즉시 반환
     copySize = GET_SIZE(HDRP(oldptr));
-    if (new_size <= copySize) {
-        return oldptr;
+    if (new_size <= copySize)
+    {
+        if (copySize - new_size < 2*DSIZE)
+        {
+            PUT(HDRP(oldptr), PACK(copySize, 1));
+            PUT(FTRP(oldptr), PACK(copySize, 1));
+        }else{
+            PUT(HDRP(oldptr), PACK(new_size, 1));
+            PUT(FTRP(oldptr), PACK(new_size, 1));
+            oldptr = NEXT_BLKP(oldptr);
+            PUT(HDRP(oldptr), PACK(copySize - new_size, 0));
+            PUT(FTRP(oldptr), PACK(copySize - new_size, 0));
+            coalesce(oldptr);
+        }
+        
+        return ptr;
     }
     
     // 사이즈가 본래 사이즈 보다 크고, 다음 블럭이 가용 블럭 일 경우
