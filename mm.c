@@ -18,6 +18,31 @@
 #include "mm.h"
 #include "memlib.h"
 
+/*********************************************************
+ * NOTE TO STUDENTS: Before you do anything else, please
+ * provide your team information in the following struct.
+ ********************************************************/
+team_t team = {
+    /* Team name */
+    "3팀",
+    /* First member's full name */
+    "안예인",
+    /* First member's email address */
+    "yein.ahn9@gmail.com",
+    /* Second member's full name (leave blank if none) */
+    "",
+    /* Second member's email address (leave blank if none) */
+    ""
+};
+/* single word (4) or double word (8) alignment */
+#define ALIGNMENT 8
+
+/* rounds up to the nearest multiple of ALIGNMENT */
+#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+
+
+#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
+
 /* 매크로 상수, 매크로 함수 정의 */
 
 #define WSIZE 4 /* 워드 사이즈 정의(bytes) */
@@ -186,7 +211,7 @@ static void *coalesce(void *bp)
 static void *find_fit(size_t asize)
 {
     // 가용 리스트를 처음부터 검색한다.
-    char *hdrp = WSIZE; // 미사용 패딩 워드는 건너뛰고 시작
+    char *hdrp = (char *)WSIZE; // 미사용 패딩 워드는 건너뛰고 시작
 
     while (1)
     {
@@ -254,7 +279,7 @@ void *mm_malloc(size_t size)
 
     // 헤더/풋터 오버헤드와 더블워드 정렬 조건을 고려하여 블록 크기를 조정한다.
     if (size <= DSIZE) {
-        asize += DSIZE;
+        asize = DSIZE;
     }
     else {
         asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
