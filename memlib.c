@@ -15,6 +15,10 @@
 #include "config.h"
 
 /* private variables */
+/* static 외부 정적 변수 */
+// 1. 프로그램 실행 시 할당 되고, 프로그램 종료 시 파괴되는 변수
+// 2. 선언시 초기화하지 않아도 0으로 초기화 된다.
+// 3. 외부에서는 참조할 수 없는 정보은닉 효과(내부 정적 변수일 때는 다른 함수, 외부 정적 변수일 때는 다른 소스파일)
 static char *mem_start_brk;  /* points to first byte of heap */
 static char *mem_brk;        /* points to last byte of heap */
 static char *mem_max_addr;   /* largest legal heap address */ 
@@ -31,7 +35,7 @@ void mem_init(void)
     }
 
     mem_max_addr = mem_start_brk + MAX_HEAP;  /* max legal heap address */
-    mem_brk = mem_start_brk;                  /* heap is empty initially */
+    mem_brk = mem_start_brk;                  /* heap is empty initially, 초기값 0으로 초기화 */
 }
 
 /* 
@@ -55,6 +59,8 @@ void mem_reset_brk()
  *    by incr bytes and returns the start address of the new area. In
  *    this model, the heap cannot be shrunk.
  */
+// sbrk 함수의 단순 모델. 
+// 힙을 바이트 단위로 확장하고 새 영역의 시작 주소를 반환합니다. 이 모델에서는 힙을 축소할 수 없습니다.
 void *mem_sbrk(int incr) 
 {
     char *old_brk = mem_brk;
@@ -64,7 +70,7 @@ void *mem_sbrk(int incr)
 	fprintf(stderr, "ERROR: mem_sbrk failed. Ran out of memory...\n");
 	return (void *)-1;
     }
-    mem_brk += incr;
+    mem_brk += incr;    // 초기 4워드 할당(4 * 4bytes) 즉, mem_brk의 포인터를 4 증가
     return (void *)old_brk;
 }
 
