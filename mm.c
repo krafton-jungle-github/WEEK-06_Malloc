@@ -24,11 +24,31 @@
  * NOTE TO STUDENTS: Before you do anything else, please
  * provide your team information in the following struct.
  ********************************************************/
+team_t team = {
+    /* Team name */
+    "KJ-R-8team",
+    /* First member's full name */
+    "gitae Kim",
+    /* First member's email address */
+    "rlarlxo2628@gmail.com",
+    /* Second member's full name (leave blank if none) */
+    "dasol Park",
+    /* Second member's email address (leave blank if none) */
+    "davidtwins6970@gmail.com"
+    /* Third member's full name (leave blank if none) */
+};
 
 /* 기본 size 상수 정의 */
 #define WSIZE                4              /* Word and header/footer size (bytes) */
 #define DSIZE                8              /* Double word size (bytes) */
 #define CHUNKSIZE           (1 << 12)       /* Extend heap by this amount (bytes) */ // 512 bytes
+#define ALIGNMENT 8
+
+/* rounds up to the nearest multiple of ALIGNMENT */
+#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+
+
+#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
 #define MAX(x, y)           ((x) > (y) ? (x) : (y)) // x, y 중 큰 값을 출력
 
@@ -66,19 +86,17 @@ void *mm_realloc(void *ptr, size_t size);
 static void *find_fit(size_t asize)
 {
     // first fit
-    void *bp = heap_listp;
+    // void *bp = (char*)heap_listp;
 
-    for (bp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(HDRP(bp)))
-    {
-        if (GET_ALLOC(HDRP(bp))) {  // 할당 블록일 시 pass
-            continue;
-        }
-        else if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))){ // * 할당 블록이 아니고, 현재 블록의 사이즈가 asize보다 크다면 가용 가능
+    void *bp;
+
+    for(bp = (char*)heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
+        if (!GET_ALLOC(HDRP(bp))  && GET_SIZE(HDRP(bp)) >= asize){
             return bp;
         }
     }
-    
     return NULL;
+
 }
 
 /* 블록이 할당되거나 재할당될 때 여유 공간을 판단해 분할해 주는 함수 */
@@ -150,8 +168,9 @@ void *mm_malloc(size_t size)
 
     /* No fit found. Get more memory and place the block */
     extendsize = MAX(asize, CHUNKSIZE);
-    if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
+    if ((bp = extend_heap(extendsize/WSIZE)) == NULL){
         return NULL;
+    }
     place(bp, asize);
     return bp;
 }
