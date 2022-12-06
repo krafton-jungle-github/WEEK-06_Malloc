@@ -211,30 +211,20 @@ static void *coalesce(void *bp)
 static void *find_fit(size_t asize)
 {
     // 가용 리스트를 처음부터 검색한다.
-    void *hdrp = HDRP(heap_listp);
+    char *bp;
 
-    while (1)
-    {
-        int is_alloc = GET_ALLOC(hdrp);
-        if (is_alloc) {
-            // 할당 블록이라면 hdrp를 갱신하고 다음 턴으로 skip
-            hdrp = HDRP(NEXT_BLKP(hdrp + WSIZE));
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+        if (GET_ALLOC(HDRP(bp))) {
+            // 할당 블록이라면 다음 턴으로 skip
             continue;
         }
 
-        size_t block_size = GET_SIZE(hdrp);
-        if (!block_size) {
-            // 크기가 0이면 terminating header이며 이는 곧 가용 리스트 내에
-            // 적절한 가용 블록이 존재하지 않는다는 의미하므로 NULL을 반환
-            return NULL;
+        if (GET_SIZE(HDRP(bp)) >= asize) {
+            return bp;
         }
-
-        if (block_size >= asize) {
-            return hdrp + WSIZE;
-        }
-
-        hdrp = HDRP(NEXT_BLKP(hdrp + WSIZE));
     }
+
+    return NULL;
 }
 
 /* 특정 가용 블록에 요청 블록을 배치하고, 가용 블록을 분할하는 작업도 선택적으로 수행하는 함수 */
@@ -242,15 +232,19 @@ void place(void *bp, size_t asize)
 {
     size_t csize = GET_SIZE(HDRP(bp));
 
-    // 헤더 설정 (가용 블록의 시작 부분에 요청 블록을 배치)
-    PUT(HDRP(bp), PACK(asize, 1));
-    // 푸터 설정
-    PUT(FTRP(bp), PACK(asize, 1));
-
     // 나머지 부분의 크기가 최소 블록 크기와 같거나 클 경우 분할
     if (csize - asize >= 2 * DSIZE) {
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FTRP(bp), PACK(asize, 1));
+
+        // 분할
         PUT(HDRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
+    }
+    // 나머지 부분의 크기가 최소 블록 크기보다 작다면 분할하지 않음.
+    else {
+        PUT(HDRP(bp), PACK(csize, 1));
+        PUT(FTRP(bp), PACK(csize, 1));
     }
 }
 
@@ -279,7 +273,7 @@ void *mm_malloc(size_t size)
 
     // 헤더/풋터 오버헤드와 더블워드 정렬 조건을 고려하여 블록 크기를 조정한다.
     if (size <= DSIZE) {
-        asize = DSIZE;
+        asize = 2 * DSIZE;
     }
     else {
         asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
