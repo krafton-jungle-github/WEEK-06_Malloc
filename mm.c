@@ -90,7 +90,9 @@ int mm_init(void)
     heap_listp += (2 * WSIZE);
 
     /* 초기 가용 블록 생성 */
-    // TODO:
+    if (extend_heap(CHUNKSIZE / WSIZE) == NULL) {
+        return -1;
+    }
 
     return 0;
 }
@@ -154,9 +156,23 @@ static void *coalesce(void *bp)
     else if (!prev_alloc && next_alloc) {
         // 이전 블록은 가용 블록, 다음 블록은 할당 블록이므로
         // 이전 블록과의 연결 작업 진행
-        
+        size += GET_SIZE(FTRP(PREV_BLKP(bp)));
+        PUT(FTRP(bp), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+
+        // 가용 블록의 헤더 위치가 변경되었으니 다음과 같이 bp 갱신 작업 필요
+        bp = PREV_BLKP(bp);
     }
     /* Case 4 */
+    else {
+        // 이전, 다음 블록 모두 가용 블록일 경우 양쪽 블록과 연결 작업 진행
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp))) + GET_SIZE(FTRP(PREV_BLKP(bp)));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+
+        // 가용 블록의 헤더 위치가 변경되었으니 다음과 같이 bp 갱신 작업 필요
+        bp = PREV_BLKP(bp);
+    }
 
     return bp;
 }
