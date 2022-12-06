@@ -211,7 +211,7 @@ static void *coalesce(void *bp)
 static void *find_fit(size_t asize)
 {
     // 가용 리스트를 처음부터 검색한다.
-    void *hdrp = mem_heap_lo();
+    void *hdrp = HDRP(heap_listp);
 
     while (1)
     {
