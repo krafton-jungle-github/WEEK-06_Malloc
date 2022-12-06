@@ -287,7 +287,7 @@ void *mm_malloc(size_t size)
 
     // 헤더/풋터 오버헤드와 더블워드 정렬 조건을 고려하여 블록 크기를 조정한다.
     if (size <= DSIZE) {
-        asize = DSIZE;
+        asize = 2 * DSIZE;
     }
     else {
         asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
