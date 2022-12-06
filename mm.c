@@ -69,7 +69,9 @@ static char *heap_listp;
 int mm_init(void);
 static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
+static void *find_fit(size_t size);
 void mm_free(void *bp);
+void *mm_malloc(size_t size);
 
 /* 
  * mm_init - initialize the malloc package.
@@ -178,8 +180,42 @@ static void *coalesce(void *bp)
     return bp;
 }
 
+/* first fit 정책에 따라 배치할 가용 블록을 찾는 함수 */
+static void *find_fit(size_t asize)
+{
+    // 가용 리스트를 처음부터 검색한다.
+    int hdrp = WSIZE; // 미사용 패딩 워드는 건너뛰고 시작
+
+    while (1)
+    {
+        int is_alloc = GET_ALLOC(hdrp);
+        if (is_alloc) {
+            // 할당 블록이라면 hdrp를 갱신하고 다음 턴으로 skip
+            hdrp = HDRP(NEXT_BLKP(hdrp + WSIZE));
+            continue;
+        }
+
+        int block_size = GET_SIZE(hdrp);
+        if (!block_size) {
+            // 크기가 0이면 terminating header이며 이는 곧 가용 리스트 내에
+            // 적절한 가용 블록이 존재하지 않는다는 의미하므로 NULL을 반환
+            return NULL;
+        }
+
+        if (block_size >= asize) {
+            PUT(hdrp, PACK(block_size, 1));
+            PUT(FTRP(hdrp + WSIZE), PACK(block_size, 1));
+
+            return hdrp + WSIZE;
+        }
+
+        hdrp = HDRP(NEXT_BLKP(hdrp + WSIZE));
+    }
+}
+
 /* 할당 블록을 반환(free)하는 함수 */
-void mm_free(void *bp) {
+void mm_free(void *bp)
+{
     size_t size = GET_SIZE(HDRP(bp));
 
     // 블록의 헤더, 푸터에 있는 할당 비트 값을 0으로 갱신
@@ -188,4 +224,28 @@ void mm_free(void *bp) {
 
     // false fragmentation 현상을 방지하기 위해 인접 가용 블록들과 연결하는 작업 진행
     coalesce(bp);
+}
+
+void *mm_malloc(size_t size)
+{
+    size_t asize; // 헤더/풋터 오버헤드와 더블워드 정렬 조건을 고려하여 조정된 블록 크기
+    size_t extendsize; // 맞는 블록을 찾지 못할 경우 힙을 얼마나 증가시킬지
+    char *bp;
+
+    if (size == 0) { // 의미 없는 요청은 무시
+        return NULL;
+    }
+
+    // 헤더/풋터 오버헤드와 더블워드 정렬 조건을 고려하여 블록 크기를 조정한다.
+    if (size <= DSIZE) {
+        asize += DSIZE;
+    }
+    else {
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
+    }
+
+    // 할당하기에 적절한 가용 블록을 찾았다면,
+    if ((bp = find_fit(asize)) != NULL) {
+        // TODO:
+    }
 }
