@@ -25,14 +25,12 @@
 team_t team = {
     /* Team name */
     "3팀",
-    /* First member's full name */
+    "김현우",
+    "kimhyn21@gmail.com",
+    "주성우",
+    "alskadmlcraz1@gmail.com",
     "안예인",
-    /* First member's email address */
     "yein.ahn9@gmail.com",
-    /* Second member's full name (leave blank if none) */
-    "",
-    /* Second member's email address (leave blank if none) */
-    ""
 };
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
