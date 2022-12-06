@@ -54,6 +54,44 @@
 
 static char *heap_listp; // 프롤로그 블록을 가리키는 정적 전역변수
 
+static void *coalesce(void *bp)
+{
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp))); // prev_bp 포인트까지 간 후, prev_bp의 payload size만큼 이동하여 prev_footer 할당 비트를 확인
+    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp))); // next_bp 포인트까지 간 후, -word로 next_header 할당 비트를 확인
+    size_t size = GET_SIZE(HDRP(bp));                   // bp의 header 를 통해 size 확인
+
+    /* Case 1 */
+    if (prev_alloc && next_alloc) {                     // CASE1. prev, next block 모두 allocate면 pass
+        return bp;
+    }
+    
+    /* Case 2 */
+    else if (prev_alloc && !next_alloc) {               // CASE2. prev는 allocate, next는 free block이면 curr_size + next_size를 추가
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+    }
+
+    /* Case 3 */
+    else if (!prev_alloc && next_alloc) {               // CASE3. prev는 free, next는 allocate block이면 curr_size + prev_size를 추가
+        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+        PUT(FTRP(bp), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        bp = PREV_BLKP(bp);
+    }
+
+    /* Case 4 */
+    else {
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(FTRP(NEXT_BLKP(bp)));  // CASE4. prev는 free, next도 free block이면 prev size + curr_size + next size 추가
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+        bp = PREV_BLKP(bp);
+    }
+
+    return bp;          // 옮겨진 위치의 bp 포인터를 반환
+}
+
+
 // 블록 할당 해제하기
 void mm_free(void *bp)
 {
