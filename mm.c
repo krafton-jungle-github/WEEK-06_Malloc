@@ -69,6 +69,7 @@ static char *heap_listp;
 int mm_init(void);
 static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
+void mm_free(void *bp);
 
 /* 
  * mm_init - initialize the malloc package.
@@ -175,4 +176,16 @@ static void *coalesce(void *bp)
     }
 
     return bp;
+}
+
+/* 할당 블록을 반환(free)하는 함수 */
+void mm_free(void *bp) {
+    size_t size = GET_SIZE(HDRP(bp));
+
+    // 블록의 헤더, 푸터에 있는 할당 비트 값을 0으로 갱신
+    PUT(HDRP(bp), PACK(size, 0));
+    PUT(FTRP(bp), PACK(size, 0));
+
+    // false fragmentation 현상을 방지하기 위해 인접 가용 블록들과 연결하는 작업 진행
+    coalesce(bp);
 }
