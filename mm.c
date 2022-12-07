@@ -86,8 +86,6 @@ void *mm_realloc(void *ptr, size_t size);
 static void *find_fit(size_t asize)
 {
     // first fit
-    // void *bp = (char*)heap_listp;
-
     void *bp;
 
     for(bp = (char*)heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
@@ -96,22 +94,16 @@ static void *find_fit(size_t asize)
         }
     }
     return NULL;
-
 }
 
 /* 블록이 할당되거나 재할당될 때 여유 공간을 판단해 분할해 주는 함수 */
-/* 
-* CASE1. 현재 블록에 size를 할당한 후에 남은 size가 최소 블록size(header와 footer를 포함한 4워드)보다 크거나 같을 때 
-* - 현재 블록의 size 정보를 변경하고 남은 size를 새로운 가용 블록으로 분할한다.
-*/
-
-/* 
-* CASE2. 현재 블록에 size를 할당한 후에 남은 size가 최소 블록 size보다 작을 때
-* - 현재 블록의 size 정보만 바꿔준다.
-*/
 static void place(void *bp, size_t asize)
 {
     size_t currSize = GET_SIZE(HDRP(bp));
+    /* 
+    * CASE1. 현재 블록에 size를 할당한 후에 남은 size가 최소 블록size(header와 footer를 포함한 4워드)보다 크거나 같을 때 
+    * - 현재 블록의 size 정보를 변경하고 남은 size를 새로운 가용 블록으로 분할한다.
+    */
     if ((currSize - asize) >= (2 * DSIZE)) {
         PUT(HDRP(bp), PACK(asize, 1));
         PUT(FTRP(bp), PACK(asize, 1));
@@ -120,6 +112,10 @@ static void place(void *bp, size_t asize)
         PUT(HDRP(bp), PACK(currSize - asize, 0));
         PUT(FTRP(bp), PACK(currSize - asize, 0));
     }
+    /* 
+    * CASE2. 현재 블록에 size를 할당한 후에 남은 size가 최소 블록 size보다 작을 때
+    * - 현재 블록의 size 정보만 바꿔준다.
+    */
     else {
         PUT(HDRP(bp), PACK(currSize, 1));
         PUT(FTRP(bp), PACK(currSize, 1));
