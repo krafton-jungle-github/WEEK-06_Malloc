@@ -171,6 +171,8 @@ void *mm_malloc(size_t size)
     return bp;
 }
 
+//! 가용블록을 연결하는 함수
+//! 이전, 다음 블록의 가용블록 여부를 확인해서 가용 블록을 합침
 static void *coalesce(void *bp)
 {
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp))); // prev_bp 포인트까지 간 후, prev_bp의 payload size만큼 이동하여 prev_footer 할당 비트를 확인
@@ -192,8 +194,11 @@ static void *coalesce(void *bp)
     /* Case 3 */
     else if (!prev_alloc && next_alloc) {               // CASE3. prev는 free, next는 allocate block이면 curr_size + prev_size를 추가
         size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+        // * curr_block의 footer에 size(prev + curr)를 대입
         PUT(FTRP(bp), PACK(size, 0));
+        // * prev_block의 header에 size(prev + curr)를 대입
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        // * prev_block으로 bp를 옮김
         bp = PREV_BLKP(bp);
     }
 
