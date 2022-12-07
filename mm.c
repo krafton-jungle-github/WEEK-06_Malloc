@@ -293,7 +293,7 @@ void *mm_malloc(size_t size)
     // 할당하기에 적절한 가용 블록을 찾지 못했다면,
     extend_size = MAX(asize, CHUNKSIZE);
 
-    if ((bp = extend_heap(extend_size)) == NULL) {
+    if ((bp = extend_heap(extend_size / WSIZE)) == NULL) {
         return NULL;
     }
     place(bp, asize);
