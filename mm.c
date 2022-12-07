@@ -87,6 +87,7 @@ team_t team = {
 
 /* 전역 변수 선언 */
 static char *heap_listp;
+char *last_bp;
 
 /* 함수 선언 */
 int mm_init(void);
@@ -116,7 +117,7 @@ int mm_init(void)
     PUT(heap_listp + (2 * WSIZE), PACK(8, 1)); /* 프롤로그 푸터 */
     PUT(heap_listp + (3 * WSIZE), PACK(0, 1)); /* 에필로그 푸터 */
     heap_listp += (2 * WSIZE);
-
+    last_bp = heap_listp;
     /* 초기 가용 블록 생성 */
     if (extend_heap(CHUNKSIZE / WSIZE) == NULL) {
         return -1;
@@ -165,6 +166,7 @@ static void *coalesce(void *bp)
     /* Case 1 */
     if (prev_alloc && next_alloc) {
         // 이전, 다음 블록 모두 할당 블록이므로 연결 작업 X
+        last_bp = bp;
         return bp;
     }
 
@@ -201,7 +203,7 @@ static void *coalesce(void *bp)
         // 가용 블록의 헤더 위치가 변경되었으니 다음과 같이 bp 갱신 작업 필요
         bp = PREV_BLKP(bp);
     }
-
+    last_bp = bp;
     return bp;
 }
 
@@ -211,17 +213,21 @@ static void *find_fit(size_t asize)
     // 가용 리스트를 처음부터 검색한다.
     char *bp;
 
-    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
-        if (GET_ALLOC(HDRP(bp))) {
-            // 할당 블록이라면 다음 턴으로 skip
-            continue;
-        }
-
-        if (GET_SIZE(HDRP(bp)) >= asize) {
+    for (bp = last_bp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+        if (asize <= GET_SIZE(HDRP(bp)) && !GET_ALLOC(HDRP(bp)))
+        {
+            last_bp = bp;
             return bp;
         }
     }
 
+    for (bp = heap_listp; bp < last_bp; bp = NEXT_BLKP(bp)) {
+        if (asize <= GET_SIZE(HDRP(bp)) && !GET_ALLOC(HDRP(bp)))
+        {
+            last_bp = bp;
+            return bp;
+        }
+    }
     return NULL;
 }
 
@@ -352,6 +358,7 @@ void *mm_realloc(void *ptr, size_t size)
             oldptr = NEXT_BLKP(oldptr);
             PUT(HDRP(oldptr), PACK(size_sum - new_size, 0));
             PUT(FTRP(oldptr), PACK(size_sum - new_size, 0));
+            coalesce(oldptr);
         }
         return ptr;
     }
