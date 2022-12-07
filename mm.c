@@ -89,6 +89,7 @@ team_t team = {
 
 /* 전역 변수 선언 */
 static char *heap_listp;
+static char *prev_fit;
 
 /* 함수 선언 */
 int mm_init(void);
@@ -118,6 +119,7 @@ int mm_init(void)
     PUT(heap_listp + (2 * WSIZE), PACK(8, 1)); /* 프롤로그 푸터 */
     PUT(heap_listp + (3 * WSIZE), PACK(0, 1)); /* 에필로그 푸터 */
     heap_listp += (2 * WSIZE);
+    prev_fit = heap_listp;
 
     /* 초기 가용 블록 생성 */
     if (extend_heap(CHUNKSIZE / WSIZE) == NULL) {
@@ -207,19 +209,20 @@ static void *coalesce(void *bp)
     return bp;
 }
 
-/* first fit 정책에 따라 배치할 가용 블록을 찾는 함수 */
+/* next fit 정책에 따라 배치할 가용 블록을 찾는 함수 */
 static void *find_fit(size_t asize)
 {
-    // 가용 리스트를 처음부터 검색한다.
+    // 가용 리스트를 직전에 검색을 마쳤던 지점에서부터 검색한다.
     char *bp;
 
-    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+    for (bp = prev_fit; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         if (GET_ALLOC(HDRP(bp))) {
             // 할당 블록이라면 다음 턴으로 skip
             continue;
         }
 
         if (GET_SIZE(HDRP(bp)) >= asize) {
+            prev_fit = bp;
             return bp;
         }
     }
@@ -259,6 +262,8 @@ void mm_free(void *bp)
 
     // false fragmentation 현상을 방지하기 위해 인접 가용 블록들과 연결하는 작업 진행
     coalesce(bp);
+
+    prev_fit = heap_listp;
 }
 
 void *mm_malloc(size_t size)
