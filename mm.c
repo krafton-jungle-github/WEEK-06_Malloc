@@ -89,7 +89,7 @@ team_t team = {
 
 /* 전역 변수 선언 */
 static char *heap_listp;
-static char *prev_fit;
+static char *last_bp;
 
 /* 함수 선언 */
 int mm_init(void);
@@ -115,11 +115,11 @@ int mm_init(void)
 
     /* 방금 생성한 비어있는 힙을 초기화 */
     PUT(heap_listp, 0); /* 미사용 패딩 워드(정렬용) */
-    PUT(heap_listp + (1 * WSIZE), PACK(8, 1)); /* 프롤로그 헤더 */
-    PUT(heap_listp + (2 * WSIZE), PACK(8, 1)); /* 프롤로그 푸터 */
+    PUT(heap_listp + (1 * WSIZE), PACK(DSIZE, 1)); /* 프롤로그 헤더 */
+    PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1)); /* 프롤로그 푸터 */
     PUT(heap_listp + (3 * WSIZE), PACK(0, 1)); /* 에필로그 푸터 */
     heap_listp += (2 * WSIZE);
-    prev_fit = heap_listp;
+    last_bp = heap_listp;
 
     /* 초기 가용 블록 생성 */
     if (extend_heap(CHUNKSIZE / WSIZE) == NULL) {
@@ -169,6 +169,7 @@ static void *coalesce(void *bp)
     /* Case 1 */
     if (prev_alloc && next_alloc) {
         // 이전, 다음 블록 모두 할당 블록이므로 연결 작업 X
+        last_bp = bp;
         return bp;
     }
 
@@ -206,6 +207,7 @@ static void *coalesce(void *bp)
         bp = PREV_BLKP(bp);
     }
 
+    last_bp = bp;
     return bp;
 }
 
@@ -215,14 +217,25 @@ static void *find_fit(size_t asize)
     // 가용 리스트를 직전에 검색을 마쳤던 지점에서부터 검색한다.
     char *bp;
 
-    for (bp = prev_fit; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+    for (bp = last_bp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         if (GET_ALLOC(HDRP(bp))) {
             // 할당 블록이라면 다음 턴으로 skip
             continue;
         }
 
         if (GET_SIZE(HDRP(bp)) >= asize) {
-            prev_fit = bp;
+            last_bp = bp;
+            return bp;
+        }
+    }
+    for (bp = heap_listp; bp < last_bp; bp = NEXT_BLKP(bp)) {
+        if (GET_ALLOC(HDRP(bp))) {
+            // 할당 블록이라면 다음 턴으로 skip
+            continue;
+        }
+
+        if (GET_SIZE(HDRP(bp)) >= asize) {
+            last_bp = bp;
             return bp;
         }
     }
@@ -262,8 +275,6 @@ void mm_free(void *bp)
 
     // false fragmentation 현상을 방지하기 위해 인접 가용 블록들과 연결하는 작업 진행
     coalesce(bp);
-
-    prev_fit = heap_listp;
 }
 
 void *mm_malloc(size_t size)
@@ -294,7 +305,7 @@ void *mm_malloc(size_t size)
     // 할당하기에 적절한 가용 블록을 찾지 못했다면,
     extend_size = MAX(asize, CHUNKSIZE);
 
-    if ((bp = extend_heap(extend_size)) == NULL) {
+    if ((bp = extend_heap(extend_size / WSIZE)) == NULL) {
         return NULL;
     }
     place(bp, asize);
